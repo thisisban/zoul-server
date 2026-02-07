@@ -1,0 +1,168 @@
+model User {
+  id           String    @id @default(uuid())
+  username     String    @unique
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  displayName  String    @map("display_name")
+  avatarUrl    String?   @map("avatar_url")
+  gender       Gender    @default(Empty)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  isBanned     Boolean   @default(false) @map("is_banned")
+  
+  roles        UserRole[]
+  audios       Audio[]
+  votes        AudioVote[]
+  statistics   UserStatistics?
+  sessions     Session[]
+  
+  @@map("users")
+}
+
+enum Gender {
+  Male
+  Female
+  Empty
+}
+
+model Role {
+  id            Int      @id
+  order         Int      @unique
+  name          String   @unique
+  displayName   String   @map("display_name")
+  permissions   Json     @default("[]")
+  bans          Json     @default("[]")
+  isSystemRole  Boolean  @default(false) @map("is_system_role")
+  createdAt     DateTime @default(now()) @map("created_at")
+  
+  users         UserRole[]
+  
+  @@map("roles")
+}
+
+model UserRole {
+  userId    String   @map("user_id")
+  roleId    Int      @map("role_id")
+  assignedAt DateTime @default(now()) @map("assigned_at")
+  assignedBy String?  @map("assigned_by")
+  
+  user      User     @relation(fields: [userId], references: [id])
+  role      Role     @relation(fields: [roleId], references: [id])
+  
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+model Audio {
+  id          String    @id @default(uuid())
+  ownerId     String    @map("owner_id")
+  displayName String    @map("display_name")
+  description String?
+  fileUrl     String    @map("file_url")
+  fileSize    Int       @map("file_size")
+  duration    Int
+  format      String
+  access      Access    @default(Public)
+  isExplicit  Boolean   @default(false) @map("is_explicit")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  
+  owner       User      @relation(fields: [ownerId], references: [id])
+  tags        AudioTag[]
+  votes       AudioVote[]
+  statistics  AudioStatistics?
+  
+  @@map("audio")
+  @@index([ownerId])
+  @@index([access])
+  @@index([createdAt])
+}
+
+enum Access {
+  Public
+  Private
+  Noone
+}
+
+model AudioTag {
+  audioId   String   @map("audio_id")
+  tag       String
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  audio     Audio    @relation(fields: [audioId], references: [id])
+  
+  @@id([audioId, tag])
+  @@map("audio_tags")
+  @@index([tag])
+}
+
+model AudioVote {
+  userId    String   @map("user_id")
+  audioId   String   @map("audio_id")
+  vote      Int
+  votedAt   DateTime @default(now()) @map("voted_at")
+  
+  user      User     @relation(fields: [userId], references: [id])
+  audio     Audio    @relation(fields: [audioId], references: [id])
+  
+  @@id([userId, audioId])
+  @@map("audio_votes")
+  @@index([audioId])
+  @@index([vote])
+}
+
+model AudioStatistics {
+  audioId         String   @id @map("audio_id")
+  listens         BigInt   @default(0)
+  favoritesCount  BigInt   @default(0) @map("favorites_count")
+  rating          Int      @default(0)
+  lastListenedAt  DateTime? @map("last_listened_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  
+  audio           Audio    @relation(fields: [audioId], references: [id])
+  
+  @@map("audio_statistics")
+}
+
+model UserStatistics {
+  userId         String   @id @map("user_id")
+  profileViews   BigInt   @default(0) @map("profile_views")
+  totalUploads   Int      @default(0) @map("total_uploads")
+  totalListens   BigInt   @default(0) @map("total_listens")
+  lastActiveAt   DateTime? @map("last_active_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  
+  user           User     @relation(fields: [userId], references: [id])
+  
+  @@map("user_statistics")
+}
+
+model Session {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  tokenHash  String   @map("token_hash")
+  ipAddress  String?  @map("ip_address")
+  userAgent  String?  @map("user_agent")
+  createdAt  DateTime @default(now()) @map("created_at")
+  expiresAt  DateTime @map("expires_at")
+  lastUsedAt DateTime @default(now()) @map("last_used_at")
+  isRevoked  Boolean  @default(false) @map("is_revoked")
+  
+  user       User     @relation(fields: [userId], references: [id])
+  
+  @@map("sessions")
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model SiteSettings {
+  key         String   @id
+  value       Json
+  description String?
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  updatedBy   String?  @map("updated_by")
+  
+  updatedByUser User?   @relation(fields: [updatedBy], references: [id])
+  
+  @@map("site_settings")
+}
